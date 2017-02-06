@@ -32,15 +32,9 @@ func readfile(_ path:String)->[String]
 
 
 // variable initialization
-var days = 0
+var row = 0
 var head = 0
-var so2 = [Double]()
-var co2 = [Double]()
-var nox = [Double]()
-var so2x = [Double]()
-var co2x = [Double]()
-var noxx = [Double]()
-var power = [Double]()
+var arrays = [String: [(Double, Double)]]()
 var run = true
 var noxline = 0.0
 var co2line = 0.0
@@ -78,7 +72,7 @@ home.remove(at: home.index(before: home.endIndex))
 print("Where is the file? ( ~ for \(home))")
 let dir = strinput().replacingOccurrences(of: "~", with: home, options: .literal, range: nil)
 print("How many rows?")
-days = (strinput() as NSString).integerValue
+row = (strinput() as NSString).integerValue
 print("How many headers?")
 head = (strinput() as NSString).integerValue
 
@@ -90,7 +84,7 @@ for x in 0...columns.count - 1
 {
     var temp = [Double]()
     temp = []
-for i in head...days
+for i in head...row
 {
     temp.append(Double(singleLine(i, file)[columns[x]])!)
 }
@@ -253,30 +247,37 @@ func switcher(_ pre: Int) {
     switch sel {
     case "0": // exit
         run = false
-    case "1": // loads file
+    case "1": // loads solar file
         // resetting arrays
+        arrays.removeAll()
+        // generate new arrays
         let read = loadFile([2,3,4,5])
-        so2 = read[3]
-        co2 = read[2]
-        nox = read[1]
-        power = read[0]
-        so2x = power
-        co2x = power
-        noxx = power
+        for i in 0...read[2].count - 1
+        {
+            arrays["Power"]!.append((0.0, read[0][i]))
+            arrays["SO2"]!.append((arrays["Power"]![i].1, read[3][i]))
+            arrays["CO2"]!.append((arrays["Power"]![i].1, read[2][i]))
+            arrays["SOX"]!.append((arrays["Power"]![i].1, read[1][i]))
+        }
     case "2":
         print("************")
         print("Removing outliers . . .")
         print("************")
         // purges outliers, changes x and y
-        let noxnew = outliers(nox, power)[1] // temp variable
-        noxx = outliers(nox, power)[0]
-        nox = noxnew
-        let co2new = outliers(co2, power)[1] // temp variable
-        co2x = outliers(co2, power)[0]
-        co2 = co2new
-        let so2new = outliers(so2, power)[1] // temp variable
-        so2x = outliers(so2, power)[0]
-        so2 = so2new
+        for (i, v) in arrays
+        {
+            let ind = arrays[i]
+            var xArr = [Double]()
+            var yArr = [Double]()
+            for k in 0...(arrays[i]!.count) - 1
+            {
+                xArr += arrays[i]![k].0
+                yArr += arrays[i]![k].1
+            }
+            let new = outliers(xArr, yArr)[1] // temp variable
+            arrays[i].0 = outliers(xArr, yArr)[0]
+            nox = new
+        }
     case "3": // linear regression
         if so2.count == 0 {print("Please load file first . . ."); return}
         noxline = linReg(noxx, nox)
