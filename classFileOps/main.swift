@@ -51,26 +51,15 @@ func menu() -> String
 {
     print("Operation           Option")
     print("Process solar monthly file 1")
-    print("Linear regressions         2")
-    print("Statistical analysis       3")
-    print("Weather regression         4")
+    print("Remove outliers            2")
+    print("Linear regressions         3")
+    print("Statistical analysis       4")
+    print("Process weather file       5")
     print("Quit                       0")
     print("Enter Option: ", terminator: "")
     return strinput()
 }
 
-// loading solar csv file
-func loadFile()
-{
-// resetting arrays
-so2 = []
-co2 = []
-nox = []
-so2x = []
-co2x = []
-noxx = []
-power = []
-    
 // splits csv array into single line
 func singleLine(_ linenum: Int,_  rowArray:[String])->[String]
 {
@@ -79,45 +68,35 @@ func singleLine(_ linenum: Int,_  rowArray:[String])->[String]
     return linerow
 } // end of singleLine
 
+// loading solar csv file
+func loadFile(_ columns: [Int]) -> [[Double]]
+{
 // relative home directory
 var home = String(describing: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]).replacingOccurrences(of: "file://", with: "", options: .literal, range: nil).replacingOccurrences(of: "/Documents", with: "", options: .literal, range: nil)
 home.remove(at: home.index(before: home.endIndex))
-
 // user input
 print("Where is the file? ( ~ for \(home))")
 let dir = strinput().replacingOccurrences(of: "~", with: home, options: .literal, range: nil)
-print("How many days?")
+print("How many rows?")
 days = (strinput() as NSString).integerValue
 print("How many headers?")
 head = (strinput() as NSString).integerValue
 
 // file input
 let file = readfile(dir)
+var exp = [[Double]]()
+exp = []
+for x in 0...columns.count - 1
+{
+    var temp = [Double]()
+    temp = []
 for i in head...days
 {
-    power.append(Double(singleLine(i, file)[2])!)
-    nox.append(Double(singleLine(i, file)[3])!)
-    co2.append(Double(singleLine(i, file)[4])!)
-    so2.append(Double(singleLine(i, file)[5])!)
+    temp.append(Double(singleLine(i, file)[columns[x]])!)
 }
-// sets default x values
-noxx = power
-co2x = power
-so2x = power
-print("Include outliers? (0 for no, 1 for yes)")
-if strinput() == "0"
-{
-    // purges outliers, changes x and y
-    let noxnew = outliers(nox, power)[1] // temp variable
-    noxx = outliers(nox, power)[0]
-    nox = noxnew
-    let co2new = outliers(co2, power)[1] // temp variable
-    co2x = outliers(co2, power)[0]
-    co2 = co2new
-    let so2new = outliers(so2, power)[1] // temp variable
-    so2x = outliers(so2, power)[0]
-    so2 = so2new
+    exp.append(temp)
 }
+return exp
 } // end of loadFile
 
 // transforms [x] and [y] array into [x: y] dictionary
@@ -248,6 +227,7 @@ func estimation(_ pre: String) {
     let CO2e = round((co2line  * powe) * 1000) / 1000
     let mon = powe * 0.101
     // output
+    print("************")
     print("\(panels) panels on a \(area) ^ 2 roof generate \(round(powe * 1000)/1000) kWh a day, \(round((powe * 365.25) * 1000)/1000) kWh a year.")
     print("Estimated savings are:")
     print("\(SO2e) lbs of SO2/day, \(round((SO2e * 365.25)*1000)/1000) lbs/year;")
@@ -255,6 +235,7 @@ func estimation(_ pre: String) {
     print("\(CO2e) lbs of Co2/day, \(round((CO2e * 365.25)*1000)/1000) lbs/year;")
     print("and \(round(mon*100)/100) USD/day, \(round((mon * 365.25)*100)/100) USD/year.")
     print("These are favorable estimates for Knoxville, TN. (6.87 hours of sunlight a day, 300 watts/panel)")
+    print("************")
     wait()
 } // end of estimator
 
@@ -273,29 +254,65 @@ func switcher(_ pre: Int) {
     case "0": // exit
         run = false
     case "1": // loads file
-        loadFile()
-    case "2": // linear regression
+        // resetting arrays
+        let read = loadFile([2,3,4,5])
+        so2 = read[3]
+        co2 = read[2]
+        nox = read[1]
+        power = read[0]
+        so2x = power
+        co2x = power
+        noxx = power
+    case "2":
+        print("************")
+        print("Removing outliers . . .")
+        print("************")
+        // purges outliers, changes x and y
+        let noxnew = outliers(nox, power)[1] // temp variable
+        noxx = outliers(nox, power)[0]
+        nox = noxnew
+        let co2new = outliers(co2, power)[1] // temp variable
+        co2x = outliers(co2, power)[0]
+        co2 = co2new
+        let so2new = outliers(so2, power)[1] // temp variable
+        so2x = outliers(so2, power)[0]
+        so2 = so2new
+    case "3": // linear regression
         if so2.count == 0 {print("Please load file first . . ."); return}
         noxline = linReg(noxx, nox)
         co2line = linReg(co2x, co2)
         so2line = linReg(so2x, so2)
+        print("************")
         print("NOX is y = \(noxline)x + \(yInt(noxx, nox)) ")
         print("CO2 is y = \(co2line)x + \(yInt(co2x, co2)) ")
         print("SO2 is y = \(so2line)x + \(yInt(so2x, so2)) ")
+        print("************")
         print("Would you like to estimate savings for Farragut High School? (y/n)")
         if strinput() == "y"
         {
             estimation("111400ft")
         }
-    case "3": // statistical analysis
+    case "4": // statistical analysis
         if so2.count == 0 {print("Please load file first . . ."); return}
+        print("************")
         stat(power, "Power")
         stat(so2, "SO2")
         stat(nox, "NOX")
         stat(co2, "CO2")
+        print("************")
         wait()
-    case "4": // weather regression
-        return
+    case "5": // weather regression
+        let read = loadFile([10, 11, 15])
+        let minT = read[1]
+        let maxT = read[0]
+        let wind = read[2]
+        var diff = [Double]()
+        diff = []
+        for i in 0...minT.count - 1
+        {
+            diff.append(maxT[i] - minT[i])
+        }
+        print(linReg(diff, wind))
     default:
         print("Please enter a valid selection . . .")
     }
