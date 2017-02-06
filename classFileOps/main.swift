@@ -21,11 +21,9 @@ func readfile(_ path:String)->[String]
 {
     do {
         // Read an entire text file into an NSString.
-        let contents = try NSString(contentsOfFile: path,
-                                    encoding: String.Encoding.ascii.rawValue)
+        let contents = try NSString(contentsOfFile: path, encoding: String.Encoding.ascii.rawValue)
         let lines:[String] = contents.components(separatedBy: "\r")
-        
-        //       print(lines)
+        // print(lines)
         return lines
     } catch {
         print("Unable to read file: \(path)");
@@ -55,7 +53,7 @@ func menu() -> String
     print("Process solar monthly file 1")
     print("Linear regressions         2")
     print("Statistical analysis       3")
-    print("Estimate savings           4")
+    print("Weather regression         4")
     print("Quit                       0")
     print("Enter Option: ", terminator: "")
     return strinput()
@@ -113,10 +111,10 @@ if strinput() == "0"
     let noxnew = outliers(nox, power)[1] // temp variable
     noxx = outliers(nox, power)[0]
     nox = noxnew
-    let co2new = outliers(co2, power)[1]
+    let co2new = outliers(co2, power)[1] // temp variable
     co2x = outliers(co2, power)[0]
     co2 = co2new
-    let so2new = outliers(so2, power)[1]
+    let so2new = outliers(so2, power)[1] // temp variable
     so2x = outliers(so2, power)[0]
     so2 = so2new
 }
@@ -206,7 +204,7 @@ func outliers(_ array : [Double], _ xx : [Double]) -> [[Double]]
     let x = dict.map { $0.1 }
     let q1 = a[a.count / 4]
     let q3 = a[3 * a.count / 4]
-    let iqr = q3 - q1 // finds inter-quartile range
+    let iqr = q3 - q1 // finds interquartile range
     for i in 0...a.count - 1
     {
         if !(a[i] > (1.5 * iqr) + q3) && !(a[i] < q1 - (1.5 * iqr)) // array without outliers
@@ -220,25 +218,63 @@ func outliers(_ array : [Double], _ xx : [Double]) -> [[Double]]
             outs.append(a[i])
         }
     }
-    return [refx, ref, [Double(num)], outs]
-}
+    return [refx, ref, [Double(num)], outs] // x array w/o outliers, y array w/o outliers, [number of outliers], y values of outliers
+} // end of outliers
 
-func switcher(_ pre: Int) { // switch case statements
+func estimation(_ pre: String) {
+    var area = "0"
+    if pre == "0" {print("Enter roof area and indicate units of measurement (m or ft)."); area = strinput()}
+    else {area = pre}
+    var panels = 0
+    // determining units
+    if area.characters.last! == "m" // meters
+    {
+        panels = Int(floor(Double((area as NSString).integerValue) / 6.096))
+    }
+    if area.characters.last! == "t" // feet
+    {
+        panels = Int(floor(Double((area as NSString).integerValue) / 30.0))
+    }
+    if (area.characters.last! != "m") && (area.characters.last! != "t") // invalid
+    {
+        print("Invalid input . . .")
+        switcher(4)
+        return
+    }
+    // calculation
+    let powe = Double(panels) * 0.300 * 6.87671232877
+    let SO2e = round((so2line * powe) * 1000) / 1000
+    let NOXe = round((noxline * powe) * 1000) / 1000
+    let CO2e = round((co2line  * powe) * 1000) / 1000
+    let mon = powe * 0.101
+    // output
+    print("\(panels) panels on a \(area) ^ 2 roof generate \(round(powe * 1000)/1000) kWh a day, \(round((powe * 365.25) * 1000)/1000) kWh a year.")
+    print("Estimated savings are:")
+    print("\(SO2e) lbs of SO2/day, \(round((SO2e * 365.25)*1000)/1000) lbs/year;")
+    print("\(NOXe) lbs of NOX/day, \(round((NOXe * 365.25)*1000)/1000) lbs/year;")
+    print("\(CO2e) lbs of Co2/day, \(round((CO2e * 365.25)*1000)/1000) lbs/year;")
+    print("and \(round(mon*100)/100) USD/day, \(round((mon * 365.25)*100)/100) USD/year.")
+    print("These are favorable estimates for Knoxville, TN. (6.87 hours of sunlight a day, 300 watts/panel)")
+    wait()
+} // end of estimator
+
+// switch case statements
+func switcher(_ pre: Int) {
     var sel = "0"
-    if pre != 0
+    if pre != 0 // allows for automatic case selection
     {
         sel = String(pre)
     }
-    else
+    else // otherwise, prints all options and returns user input
     {
         sel = menu()
     }
     switch sel {
-    case "0":
+    case "0": // exit
         run = false
-    case "1":
+    case "1": // loads file
         loadFile()
-    case "2":
+    case "2": // linear regression
         if so2.count == 0 {print("Please load file first . . ."); return}
         noxline = linReg(noxx, nox)
         co2line = linReg(co2x, co2)
@@ -246,58 +282,32 @@ func switcher(_ pre: Int) { // switch case statements
         print("NOX is y = \(noxline)x + \(yInt(noxx, nox)) ")
         print("CO2 is y = \(co2line)x + \(yInt(co2x, co2)) ")
         print("SO2 is y = \(so2line)x + \(yInt(so2x, so2)) ")
-        wait()
-    case "3":
+        print("Would you like to estimate savings for Farragut High School? (y/n)")
+        if strinput() == "y"
+        {
+            estimation("111400ft")
+        }
+    case "3": // statistical analysis
         if so2.count == 0 {print("Please load file first . . ."); return}
         stat(power, "Power")
         stat(so2, "SO2")
         stat(nox, "NOX")
         stat(co2, "CO2")
         wait()
-    case "4":
-        if so2line == 0 {print("Please run linear regression first . . ."); return}
-        print("Enter roof area and indicate units of measurement (m or ft).")
-        let area = strinput()
-        var panels = 0
-        if area.characters.last! == "m"
-        {
-            panels = Int(floor(Double((area as NSString).integerValue) / 6.096))
-        }
-        if area.characters.last! == "t"
-        {
-            panels = Int(floor(Double((area as NSString).integerValue) / 30.0))
-        }
-        if (area.characters.last! != "m") && (area.characters.last! != "t")
-        {
-        print("Invalid input . . .")
-        switcher(4)
+    case "4": // weather regression
         return
-        }
-        let powe = Double(panels) * 0.300 * 6.87671232877
-        let SO2e = round((so2line * powe) * 1000) / 1000
-        let NOXe = round((noxline * powe) * 1000) / 1000
-        let CO2e = round((co2line  * powe) * 1000) / 1000
-        let mon = powe * 0.101
-        print("\(panels) panels on a \(area) ^ 2 roof generate \(round(powe * 1000)/1000) kWh a day, \(round((powe * 365.25) * 1000)/1000) kWh a year.")
-        print("Estimated savings are:")
-        print("\(SO2e) lbs of SO2/day, \(round((SO2e * 365.25)*1000)/1000) lbs/year;")
-        print("\(NOXe) lbs of NOX/day, \(round((NOXe * 365.25)*1000)/1000) lbs/year;")
-        print("\(CO2e) lbs of Co2/day, \(round((CO2e * 365.25)*1000)/1000) lbs/year;")
-        print("and \(round(mon*100)/100) USD/day, \(round((mon * 365.25)*100)/100) USD/year.")
-        print("These are favorable estimates for Knoxville, TN. (6.87 hours of sunlight a day, 300 watts/panel)")
-        wait()
     default:
         print("Please enter a valid selection . . .")
     }
-}
+} // end of switcher
 
-func wait()
+func wait() // requires user to press enter to continue
 {
     print("Press enter to continue . . .")
     readLine()
-}
+} // end of wait
 
-while run == true
+while run == true // eternally run switcher until stopped
 {
     switcher(0)
-}
+} // end of program
