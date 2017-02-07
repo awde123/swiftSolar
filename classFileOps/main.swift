@@ -167,7 +167,7 @@ func stat(_ array: [Double], _ name: String)
         let x = Double(arr[i])
         dev = dev + (abs(x - average)/Double(arr.count))
     }
-    print("\(name):, Count : \(arr.count), Sum: \(sum), Median: \(median), Average: \(average), σ: \(standardDeviation(arr: arr))")
+    print("\(name): Count : \(arr.count), Sum: \(sum), Median: \(median), Average: \(average), σ: \(standardDeviation(arr: arr))")
 } // end of stat
 
 // finds standard deviation (average distance from mean squared)
@@ -316,10 +316,10 @@ func switcher(_ pre: Int) {
         }
         reg = true
         print("************")
+        if type != "solar" {return}
         print("Would you like to estimate savings for Farragut High School? (y/n)")
         if strinput() == "y"
         {
-            if type != "solar" {print("Please load a solar file (menu selection 1)"); return}
             co2line = slopeA[0]
             so2line = slopeA[1]
             noxline = slopeA[2]
@@ -335,17 +335,17 @@ func switcher(_ pre: Int) {
         print("************")
         wait()
     case "5": // weather regression
+        arrays.removeAll()
+        arrays["Wind"] = []
+        type = "Default"
         let read = loadFile([10, 11, 15])
         let minT = read[1]
         let maxT = read[0]
         let wind = read[2]
-        var diff = [Double]()
-        diff = []
         for i in 0...minT.count - 1
         {
-            diff.append(maxT[i] - minT[i])
+            arrays["Wind"]! += [((maxT[i] - minT[i]), wind[i])]
         }
-        print(linReg(diff, wind))
     default:
         print("Please enter a valid selection . . .")
  }
