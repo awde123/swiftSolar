@@ -65,33 +65,44 @@ func singleLine(_ linenum: Int,_  rowArray:[String])->[String]
 // loading solar csv file
 func loadFile(_ columns: [Int]) -> [[Double]]
 {
-// relative home directory
-var home = String(describing: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]).replacingOccurrences(of: "file://", with: "", options: .literal, range: nil).replacingOccurrences(of: "/Documents", with: "", options: .literal, range: nil)
-home.remove(at: home.index(before: home.endIndex))
-// user input
-print("Where is the file? ( ~ for \(home))")
-let dir = strinput().replacingOccurrences(of: "~", with: home, options: .literal, range: nil)
-print("How many rows?")
-row = (strinput() as NSString).integerValue
-print("How many headers?")
-head = (strinput() as NSString).integerValue
-
-// file input
-let file = readfile(dir)
-var exp = [[Double]]()
-exp = []
-for x in 0...columns.count - 1
-{
-    var temp = [Double]()
-    temp = []
-for i in head...row
-{
-    temp.append(Double(singleLine(i, file)[columns[x]])!)
-}
-    exp.append(temp)
-}
-return exp
+    // relative home directory
+    var home = String(describing: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]).replacingOccurrences(of: "file://", with: "", options: .literal, range: nil).replacingOccurrences(of: "/Documents", with: "", options: .literal, range: nil)
+    home.remove(at: home.index(before: home.endIndex))
+    // user input
+    print("Where is the file? ( ~ for \(home))")
+    let dir = strinput().replacingOccurrences(of: "~", with: home, options: .literal, range: nil)
+    print("How many rows?")
+    row = (strinput() as NSString).integerValue
+    print("How many headers?")
+    head = (strinput() as NSString).integerValue
+    // file input
+    let file = readfile(dir)
+    var exp = [[Double]]()
+    exp = []
+    for x in 0...columns.count - 1
+    {
+        var temp = [Double]()
+        temp = []
+            for i in head...row
+            {
+                temp.append(Double(singleLine(i, file)[columns[x]])!)
+        }
+        exp.append(temp)
+    }
+    return exp
 } // end of loadFile
+
+func sep(_ x: [(Double, Double)]) -> [[Double]]
+{
+    var arrayx: [Double] = []
+    var arrayy: [Double] = []
+    for i in 0...x.count - 1
+    {
+        arrayx.append(x[i].0)
+        arrayy.append(x[i].1)
+    }
+    return [arrayx, arrayy]
+}
 
 // transforms [x] and [y] array into [x: y] dictionary
 func dictFromArray(_ x: [Double],_ y: [Double]) -> [Double: Double]
@@ -164,6 +175,16 @@ func standardDeviation(arr : [Double]) -> Double
     let sumOfSquaredAvgDiff = arr.map { pow($0 - avg, 2.0)}.reduce(0, {$0 + $1})
     return sqrt(sumOfSquaredAvgDiff / length)
 } // end of stdDev
+
+func tupChange(_ x: [Double], _ y: [Double]) -> [(Double, Double)]
+{
+    var new = [(Double, Double)]()
+    for i in 0...x.count - 1
+    {
+        new.append((x[i], y[i]))
+    }
+    return new
+}
 
 // finds and eliminates outliers to ensure accruate calculations
 func outliers(_ array : [Double], _ xx : [Double]) -> [[Double]]
@@ -252,48 +273,48 @@ func switcher(_ pre: Int) {
         arrays.removeAll()
         // generate new arrays
         let read = loadFile([2,3,4,5])
+        for name in ["Power","SO2","CO2","SOX"] {arrays[name] = []}
         for i in 0...read[2].count - 1
         {
-            arrays["Power"]!.append((0.0, read[0][i]))
-            arrays["SO2"]!.append((arrays["Power"]![i].1, read[3][i]))
-            arrays["CO2"]!.append((arrays["Power"]![i].1, read[2][i]))
-            arrays["SOX"]!.append((arrays["Power"]![i].1, read[1][i]))
+            arrays["Power"]! += [(0.0, read[0][i])]
+            arrays["SO2"]! += [(arrays["Power"]![i].1, read[3][i])]
+            arrays["CO2"]! += [(arrays["Power"]![i].1, read[2][i])]
+            arrays["SOX"]! += [(arrays["Power"]![i].1, read[1][i])]
         }
     case "2":
         print("************")
         print("Removing outliers . . .")
         print("************")
         // purges outliers, changes x and y
-        for (i, v) in arrays
+        for (i, _) in arrays
         {
-            let ind = arrays[i]
             var xArr = [Double]()
             var yArr = [Double]()
             for k in 0...(arrays[i]!.count) - 1
             {
-                xArr += arrays[i]![k].0
-                yArr += arrays[i]![k].1
+                xArr.append(arrays[i]![k].0)
+                yArr.append(arrays[i]![k].1)
             }
-            let new = outliers(xArr, yArr)[1] // temp variable
-            arrays[i].0 = outliers(xArr, yArr)[0]
-            nox = new
+            let temp = outliers(yArr, xArr)
+            arrays[i]! = tupChange(temp[1], temp[0])
+            print("\(i): \(arrays[i]!). Total count = \(arrays[i]!.count)")
         }
     case "3": // linear regression
-        if so2.count == 0 {print("Please load file first . . ."); return}
-        noxline = linReg(noxx, nox)
-        co2line = linReg(co2x, co2)
-        so2line = linReg(so2x, so2)
+        if arrays.count == 0 {print("Please load file first . . ."); return}
         print("************")
-        print("NOX is y = \(noxline)x + \(yInt(noxx, nox)) ")
-        print("CO2 is y = \(co2line)x + \(yInt(co2x, co2)) ")
-        print("SO2 is y = \(so2line)x + \(yInt(so2x, so2)) ")
+        for (i, _) in arrays
+        {
+        let slope = linReg(sep(arrays[i]!)[1], sep(arrays[i]!)[0])
+        let intercept = yInt(sep(arrays[i]!)[0], sep(arrays[i]!)[1])
+        print("\(i) linear regression is y = \(slope)x + \(intercept) ")
+        }
         print("************")
         print("Would you like to estimate savings for Farragut High School? (y/n)")
         if strinput() == "y"
         {
             estimation("111400ft")
         }
-    case "4": // statistical analysis
+    /*case "4": // statistical analysis
         if so2.count == 0 {print("Please load file first . . ."); return}
         print("************")
         stat(power, "Power")
@@ -314,9 +335,10 @@ func switcher(_ pre: Int) {
             diff.append(maxT[i] - minT[i])
         }
         print(linReg(diff, wind))
+ */
     default:
         print("Please enter a valid selection . . .")
-    }
+ }
 } // end of switcher
 
 func wait() // requires user to press enter to continue
