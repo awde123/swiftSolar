@@ -10,7 +10,6 @@
 import Foundation
 import Swift
 
-
 // strinput returns user input str
 func strinput() -> String {
     return String(readLine()!)
@@ -32,19 +31,16 @@ func readfile(_ path:String)->[String]
 
 
 // variable initialization
-var days = 0
+var row = 0
 var head = 0
-var so2 = [Double]()
-var co2 = [Double]()
-var nox = [Double]()
-var so2x = [Double]()
-var co2x = [Double]()
-var noxx = [Double]()
-var power = [Double]()
+var slopeA = [Double]()
+var arrays = [String: [(Double, Double)]]()
 var run = true
+var reg = false
 var noxline = 0.0
 var co2line = 0.0
 var so2line = 0.0
+var type = String()
 
 // menu for user selection
 func menu() -> String
@@ -71,33 +67,45 @@ func singleLine(_ linenum: Int,_  rowArray:[String])->[String]
 // loading solar csv file
 func loadFile(_ columns: [Int]) -> [[Double]]
 {
-// relative home directory
-var home = String(describing: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]).replacingOccurrences(of: "file://", with: "", options: .literal, range: nil).replacingOccurrences(of: "/Documents", with: "", options: .literal, range: nil)
-home.remove(at: home.index(before: home.endIndex))
-// user input
-print("Where is the file? ( ~ for \(home))")
-let dir = strinput().replacingOccurrences(of: "~", with: home, options: .literal, range: nil)
-print("How many rows?")
-days = (strinput() as NSString).integerValue
-print("How many headers?")
-head = (strinput() as NSString).integerValue
-
-// file input
-let file = readfile(dir)
-var exp = [[Double]]()
-exp = []
-for x in 0...columns.count - 1
-{
-    var temp = [Double]()
-    temp = []
-for i in head...days
-{
-    temp.append(Double(singleLine(i, file)[columns[x]])!)
-}
-    exp.append(temp)
-}
-return exp
+    reg = false
+    // relative home directory
+    var home = String(describing: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]).replacingOccurrences(of: "file://", with: "", options: .literal, range: nil).replacingOccurrences(of: "/Documents", with: "", options: .literal, range: nil)
+    home.remove(at: home.index(before: home.endIndex))
+    // user input
+    print("Where is the file? ( ~ for \(home))")
+    let dir = strinput().replacingOccurrences(of: "~", with: home, options: .literal, range: nil)
+    print("How many rows?")
+    row = (strinput() as NSString).integerValue
+    print("How many headers?")
+    head = (strinput() as NSString).integerValue
+    // file input
+    let file = readfile(dir)
+    var exp = [[Double]]()
+    exp = []
+    for x in 0...columns.count - 1
+    {
+        var temp = [Double]()
+        temp = []
+            for i in head...row
+            {
+                temp.append(Double(singleLine(i, file)[columns[x]])!)
+        }
+        exp.append(temp)
+    }
+    return exp
 } // end of loadFile
+
+func sep(_ x: [(Double, Double)]) -> [[Double]]
+{
+    var arrayx: [Double] = []
+    var arrayy: [Double] = []
+    for i in 0...x.count - 1
+    {
+        arrayx.append(x[i].0)
+        arrayy.append(x[i].1)
+    }
+    return [arrayx, arrayy]
+}
 
 // transforms [x] and [y] array into [x: y] dictionary
 func dictFromArray(_ x: [Double],_ y: [Double]) -> [Double: Double]
@@ -159,7 +167,7 @@ func stat(_ array: [Double], _ name: String)
         let x = Double(arr[i])
         dev = dev + (abs(x - average)/Double(arr.count))
     }
-    print("\(name):, Count : \(arr.count), Sum: \(sum), Median: \(median), Average: \(average), σ: \(standardDeviation(arr: arr))")
+    print("\(name): Count : \(arr.count), Sum: \(sum), Median: \(median), Average: \(average), σ: \(standardDeviation(arr: arr))")
 } // end of stat
 
 // finds standard deviation (average distance from mean squared)
@@ -170,6 +178,16 @@ func standardDeviation(arr : [Double]) -> Double
     let sumOfSquaredAvgDiff = arr.map { pow($0 - avg, 2.0)}.reduce(0, {$0 + $1})
     return sqrt(sumOfSquaredAvgDiff / length)
 } // end of stdDev
+
+func tupChange(_ x: [Double], _ y: [Double]) -> [(Double, Double)]
+{
+    var new = [(Double, Double)]()
+    for i in 0...x.count - 1
+    {
+        new.append((x[i], y[i]))
+    }
+    return new
+}
 
 // finds and eliminates outliers to ensure accruate calculations
 func outliers(_ array : [Double], _ xx : [Double]) -> [[Double]]
@@ -201,6 +219,7 @@ func outliers(_ array : [Double], _ xx : [Double]) -> [[Double]]
 } // end of outliers
 
 func estimation(_ pre: String) {
+    if !reg {print("Run linear regression first!"); return}
     var area = "0"
     if pre == "0" {print("Enter roof area and indicate units of measurement (m or ft)."); area = strinput()}
     else {area = pre}
@@ -232,7 +251,7 @@ func estimation(_ pre: String) {
     print("Estimated savings are:")
     print("\(SO2e) lbs of SO2/day, \(round((SO2e * 365.25)*1000)/1000) lbs/year;")
     print("\(NOXe) lbs of NOX/day, \(round((NOXe * 365.25)*1000)/1000) lbs/year;")
-    print("\(CO2e) lbs of Co2/day, \(round((CO2e * 365.25)*1000)/1000) lbs/year;")
+    print("\(CO2e) lbs of CO2/day, \(round((CO2e * 365.25)*1000)/1000) lbs/year;")
     print("and \(round(mon*100)/100) USD/day, \(round((mon * 365.25)*100)/100) USD/year.")
     print("These are favorable estimates for Knoxville, TN. (6.87 hours of sunlight a day, 300 watts/panel)")
     print("************")
@@ -253,69 +272,83 @@ func switcher(_ pre: Int) {
     switch sel {
     case "0": // exit
         run = false
-    case "1": // loads file
-        // resetting arrays
+    case "1": // loads solar file
+        // resetting arrays and set filetype
+        arrays.removeAll()
+        type = "solar"
+        // generate new arrays
         let read = loadFile([2,3,4,5])
-        so2 = read[3]
-        co2 = read[2]
-        nox = read[1]
-        power = read[0]
-        so2x = power
-        co2x = power
-        noxx = power
+        for name in ["Power","SO2","CO2","NOX"] {arrays[name] = []}
+        for i in 0...read[0].count - 1
+        {
+            arrays["Power"]! += [(0.0, read[0][i])]
+            arrays["SO2"]! += [(arrays["Power"]![i].1, read[3][i])]
+            arrays["CO2"]! += [(arrays["Power"]![i].1, read[2][i])]
+            arrays["NOX"]! += [(arrays["Power"]![i].1, read[1][i])]
+        }
     case "2":
         print("************")
         print("Removing outliers . . .")
         print("************")
         // purges outliers, changes x and y
-        let noxnew = outliers(nox, power)[1] // temp variable
-        noxx = outliers(nox, power)[0]
-        nox = noxnew
-        let co2new = outliers(co2, power)[1] // temp variable
-        co2x = outliers(co2, power)[0]
-        co2 = co2new
-        let so2new = outliers(so2, power)[1] // temp variable
-        so2x = outliers(so2, power)[0]
-        so2 = so2new
+        for (i, _) in arrays
+        {
+            var xArr = [Double]()
+            var yArr = [Double]()
+            for k in 0...(arrays[i]!.count) - 1
+            {
+                xArr.append(arrays[i]![k].0)
+                yArr.append(arrays[i]![k].1)
+            }
+            let temp = outliers(yArr, xArr)
+            arrays[i]! = tupChange(temp[1], temp[0])
+        }
     case "3": // linear regression
-        if so2.count == 0 {print("Please load file first . . ."); return}
-        noxline = linReg(noxx, nox)
-        co2line = linReg(co2x, co2)
-        so2line = linReg(so2x, so2)
         print("************")
-        print("NOX is y = \(noxline)x + \(yInt(noxx, nox)) ")
-        print("CO2 is y = \(co2line)x + \(yInt(co2x, co2)) ")
-        print("SO2 is y = \(so2line)x + \(yInt(so2x, so2)) ")
+        slopeA.removeAll()
+        for (i, _) in arrays
+        {
+        if i == "Power" {continue}
+        let slope = linReg(sep(arrays[i]!)[0], sep(arrays[i]!)[1])
+        let intercept = yInt(sep(arrays[i]!)[0], sep(arrays[i]!)[1])
+        slopeA.append(slope)
+        print("\(i) linear regression is y = \(slope)x + \(intercept) ")
+        }
+        reg = true
         print("************")
+        if type != "solar" {return}
         print("Would you like to estimate savings for Farragut High School? (y/n)")
         if strinput() == "y"
         {
+            co2line = slopeA[0]
+            so2line = slopeA[1]
+            noxline = slopeA[2]
             estimation("111400ft")
         }
     case "4": // statistical analysis
-        if so2.count == 0 {print("Please load file first . . ."); return}
+        if arrays.count == 0 {print("Please load file first . . ."); return}
         print("************")
-        stat(power, "Power")
-        stat(so2, "SO2")
-        stat(nox, "NOX")
-        stat(co2, "CO2")
+        for (i, _) in arrays
+        {
+            stat(sep(arrays[i]!)[1], i)
+        }
         print("************")
         wait()
     case "5": // weather regression
+        arrays.removeAll()
+        arrays["Wind"] = []
+        type = "Default"
         let read = loadFile([10, 11, 15])
         let minT = read[1]
         let maxT = read[0]
         let wind = read[2]
-        var diff = [Double]()
-        diff = []
         for i in 0...minT.count - 1
         {
-            diff.append(maxT[i] - minT[i])
+            arrays["Wind"]! += [((maxT[i] - minT[i]), wind[i])]
         }
-        print(linReg(diff, wind))
     default:
         print("Please enter a valid selection . . .")
-    }
+ }
 } // end of switcher
 
 func wait() // requires user to press enter to continue
